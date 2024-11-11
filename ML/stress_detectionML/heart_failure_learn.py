@@ -2,7 +2,7 @@ import pandas as pd
 import pickle
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve
 from sklearn.model_selection import cross_val_score
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,7 @@ def evaluate_preds(y_true, y_preds):
     f1 = f1_score(y_true, y_preds)
     metric_disct = {"accuracy": round (accuracy, 2),
                     "precision": round(precision, 2),
-                    "recall": round (precision, 2),
+                    "recall": round (recall, 2),
                     "f1":round(f1, 2)}
     print(f"Acc: {accuracy *100:.2f}%")
     print (f"Precision:{precision:.2f}")
@@ -78,6 +78,3 @@ compare_metrics = pd.DataFrame({"random search": rs_metrics,
                                "grid search": gs_metrics})
 print(compare_metrics.plot.bar(figsize=(10,8)))
 pickle.dump(gs_clf, open("heart_failure.pkl", "wb"))
-#loaded_pickle_model = pickel.load(open("heart_failure.pk1", "rb"))
-#pickle_y_preds = loaded_pickle_model.predict(X_test)
-#evaluate_preds(y_test, pickle_y_preds)
