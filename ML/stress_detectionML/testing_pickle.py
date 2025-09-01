@@ -6,7 +6,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 from sklearn.model_selection import cross_val_score
 import matplotlib.pyplot as plt
 import numpy as np
-
+#1
 def plot_roc_curve (fpr,tpr):
     """
     plots ROC curve give flase pos rate and true pos rate 
