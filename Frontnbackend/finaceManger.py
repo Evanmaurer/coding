@@ -1,7 +1,4 @@
 import csv
-import pandas as pd
-import gspread
-import time
 
 SUBSCRIPTION_NAMES = {"RECURRING DEBIT PURCHASE PAYPAL *DISCORD 402-935-7733CA" , "RECURRING DEBIT PURCHASE Spotify USA     877-7781161 NY", }
 transactions = [
@@ -37,15 +34,3 @@ def fin(file, SUBSCRIPTION_NAMES):
     return transactions
     
     
-#fin(file, SUBSCRIPTION_NAMES)
-
-'''
-sa = gspread.service_account()
-sh = sa.open("Personal Finances")
-
-wks = sh.worksheet(f"{month}")               
-rows = fin(file, SUBSCRIPTION_NAMES)    
-for row in rows:
-    wks.insert_row((str(row[0]),str(row[1]),str(row[3]), row[2]),8)
-    time.sleep(2)
-'''
