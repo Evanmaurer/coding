@@ -1,7 +1,5 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <title>Finance Dashboard</title>
+<html><head><title>Finance Manager</title>
   <style>
     body {
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -58,35 +56,31 @@
     canvas {
       display: block;
       margin: 30px auto;
-      max-width: 500px;
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
+      max-width: 500px;}</style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
 <body>
-  <h1>Finance Dashboard</h1>
+  <h1>Finance Manager</h1>
 
   <div class="summary">
-    <p><strong>Total Income:</strong> {{ total_income }}</p>
-    <p><strong>Total Expenses:</strong> {{ total_expenses }}</p>
-    <p><strong>Net:</strong> {{ net }}</p>
-  </div>
+    <p><strong>Total Income:</strong> {{ income }}</p>
+    <p><strong>Total Expenses:</strong> {{ expenses }}</p>
+    <p><strong>Net:</strong> {{ net }}</p></div>
 
   {{ summary|safe }}
 
-  <h2>Monthly Spending</h2>
+  <h2>Monthly</h2>
   <canvas id="barChart"></canvas>
-
-  <h2>Spending by Category</h2>
+  <h2>Spending</h2>
   <canvas id="pieChart"></canvas>
-
   <script>
-    // Monthly Bar Chart
+    //creating bar chart followed by pie chart to first showing monthly
+    // and then show total spending by catergory
     const barCtx = document.getElementById('barChart').getContext('2d');
     new Chart(barCtx, {
       type: 'bar',
       data: {
-        labels: {{ monthly_labels|tojson }},
+        labels: {{ month_labels|tojson }},
         datasets: [
           {
             label: 'Income',
@@ -105,8 +99,6 @@
         plugins: { legend: { position: 'top' } }
       }
     });
-
-    // Pie Chart (Category Spending)
     const pieCtx = document.getElementById('pieChart').getContext('2d');
     new Chart(pieCtx, {
       type: 'pie',
@@ -124,7 +116,4 @@
         responsive: true,
         plugins: { legend: { position: 'bottom' } }
       }
-    });
-  </script>
-</body>
-</html>
+    });</script></body></html>
