@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html><head><title>Finance Manager</title>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Finance Manager</title>
   <style>
     body {
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #f0f4f8, #d9e4ec);
+      background-color: #f5f7fa;
       color: #333;
       margin: 0;
       padding: 0;
@@ -12,19 +15,17 @@
     h1, h2 {
       text-align: center;
       color: #2c3e50;
+      margin-top: 20px;
     }
 
     .summary {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       text-align: center;
-      margin: 20px;
-      font-size: 18px;
-      background: #ffffffdd;
-      padding: 15px;
-      border-radius: 12px;
-      width: 60%;
-      margin-left: auto;
-      margin-right: auto;
-      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
     }
 
     table.data {
@@ -32,52 +33,55 @@
       width: 80%;
       margin: 20px auto;
       background: #fff;
-      border-radius: 10px;
+      border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    table.data th, table.data td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
     }
 
     table.data th {
       background-color: #34495e;
-      color: white;
-      padding: 10px;
-    }
-
-    table.data td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
+      color: #fff;
     }
 
     table.data tr:nth-child(even) {
-      background-color: #f9f9f9;
+      background-color: #f2f2f2;
     }
 
     canvas {
       display: block;
       margin: 30px auto;
-      max-width: 500px;}</style>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
+      max-width: 500px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
 <body>
+
   <h1>Finance Manager</h1>
 
   <div class="summary">
     <p><strong>Total Income:</strong> {{ income }}</p>
     <p><strong>Total Expenses:</strong> {{ expenses }}</p>
-    <p><strong>Net:</strong> {{ net }}</p></div>
+    <p><strong>Net:</strong> {{ net }}</p>
+  </div>
 
   {{ summary|safe }}
 
-  <h2>Monthly</h2>
+  <h2>Monthly Overview</h2>
   <canvas id="barChart"></canvas>
-  <h2>Spending</h2>
+
+  <h2>Spending by Category</h2>
   <canvas id="pieChart"></canvas>
+
   <script>
-    //creating bar chart followed by pie chart to first showing monthly
-    // and then show total spending by catergory
-    const barCtx = document.getElementById('barChart').getContext('2d');
-    new Chart(barCtx, {
+    // Bar Chart for monthly income vs expenses
+    const barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
       type: 'bar',
       data: {
         labels: {{ month_labels|tojson }},
@@ -96,11 +100,18 @@
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'top' } }
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: true, text: 'Monthly Income vs Expenses' }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
       }
     });
-    const pieCtx = document.getElementById('pieChart').getContext('2d');
-    new Chart(pieCtx, {
+
+    // Pie Chart for spending by category
+    const pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
       type: 'pie',
       data: {
         labels: {{ categories|tojson }},
@@ -114,6 +125,13 @@
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'bottom' } }
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: 'Spending by Category' }
+        }
       }
-    });</script></body></html>
+    });
+  </script>
+
+</body>
+</html>
