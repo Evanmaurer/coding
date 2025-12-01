@@ -35,9 +35,9 @@ BUTTON_COORDS = {
     "search_stone": (801, 602, 863, 672),  # Stone Deposit button
     "search_gold": (993, 602, 1055, 672),  # Gold Deposit button (estimated: same width/height as stone)
     
-    # Level controls
-    "level_plus": None,  # Plus button for level - add coordinates
-    "level_minus": None,  # Minus button for level - add coordinates
+    # Level controls - using image detection now
+    "level_plus": None,  # Plus button for level - using image detection
+    "level_minus": None,  # Minus button for level - using image detection
     
     # Final SEARCH button (position changes based on selected resource type)
     "final_search_food": (372, 465, 527, 517),  # SEARCH button when food is selected
@@ -45,6 +45,16 @@ BUTTON_COORDS = {
     "final_search_stone": (758, 465, 911, 513),  # SEARCH button when stone is selected (calculated)
     "final_search_gold": (951, 465, 1104, 513),  # SEARCH button when gold is selected (calculated)
     "final_search": None,  # Generic fallback (will use resource-specific if available)
+    
+    # Preset buttons for troop selection (5 presets)
+    "preset_1": (1094, 262, 1113, 284),  # Top preset
+    "preset_2": (1094, 318, 1112, 337),  # Second preset
+    "preset_3": (1094, 371, 1112, 390),  # Third preset (fixed typo in user's coords)
+    "preset_4": (1094, 428, 1112, 447),  # Fourth preset (fixed typo in user's coords)
+    "preset_5": (1094, 480, 1112, 500),  # Fifth preset
+    
+    # March button
+    "march_button": (811, 605, 1046, 665),  # March button to send troops
 }
 
 def find_nox_path():
@@ -714,6 +724,120 @@ def find_level_controls(screenshot):
     
     return controls if controls else None
 
+def set_level_to_8():
+    """
+    Set level directly to 8 without resetting first.
+    Just click plus button 7 times to go from level 1 to 8.
+    
+    Returns: 8 (the level set)
+    """
+    print("Setting level to 8...")
+    
+    # Click plus button 7 times to reach level 8 (assuming we start at level 1)
+    print("Clicking plus button 7 times to reach level 8...")
+    for i in range(7):
+        if click_button_by_template("plus_rrslvl.png", threshold=0.7):
+            print(f"  Clicked plus button {i+1}/7")
+            time.sleep(0.5)  # Small delay between clicks
+        else:
+            print(f"Warning: Could not find plus button on attempt {i+1}")
+            # Try to continue anyway
+            time.sleep(0.5)
+    
+    print("Level set to 8")
+    time.sleep(1)  # Wait a moment for level to register
+    return 8
+
+def send_march_to_resource(resource_x, resource_y, resource_w, resource_h, preset_number):
+    """
+    Send a march to a resource by:
+    1. Clicking the gather button
+    2. Clicking the new troop button
+    3. Clicking the preset button (1-5)
+    4. Clicking the march button
+    
+    Args:
+        resource_x, resource_y, resource_w, resource_h: Resource coordinates
+        preset_number: Which preset to use (1-5)
+    
+    Returns: True if march was sent successfully, False otherwise
+    """
+    print(f"Sending march {preset_number} to resource at ({resource_x + resource_w//2}, {resource_y + resource_h//2})...")
+    
+    
+    # Step 2: Click the gather button
+    print("  Step 2: Clicking gather button...")
+    if not click_button_by_template("gather_rrs.png", threshold=0.7):
+        print("  Failed to find gather button")
+        return False
+    time.sleep(1.5)  # Small delay for game to load
+    
+    # Step 3: Click the new troop button
+    print("  Step 3: Clicking new troop button...")
+    if not click_button_by_template("newtroop.png", threshold=0.7):
+        print("  Failed to find new troop button")
+        return False
+    time.sleep(1.5)  # Small delay for game to load
+    
+    # Step 4: Click the preset button
+    if preset_number < 1 or preset_number > 5:
+        print(f"  Error: Invalid preset number {preset_number}, must be 1-5")
+        return False
+    
+    preset_key = f"preset_{preset_number}"
+    print(f"  Step 4: Clicking preset {preset_number}...")
+    if not click_button_by_coords(preset_key):
+        print(f"  Failed to click preset {preset_number}")
+        return False
+    time.sleep(1.0)  # Small delay for game to load
+    
+    # Step 5: Click the march button
+    print("  Step 5: Clicking march button...")
+    if not click_button_by_coords("march_button"):
+        print("  Failed to click march button")
+        return False
+    time.sleep(1.5)  # Small delay for game to load
+    
+    print(f"  ✓ March {preset_number} sent successfully!")
+    return True
+
+def select_random_resource(weights=None):
+    """
+    Select a random resource type with weighted chances.
+    
+    Args:
+        weights: Dict with resource types as keys and weights as values.
+                Default: equal weights for all resources.
+                Example: {"food": 0.3, "wood": 0.3, "stone": 0.2, "gold": 0.2}
+    
+    Returns: Resource type string ("food", "wood", "stone", or "gold")
+    """
+    if weights is None:
+        # Default: equal chances for all resources
+        weights = {
+            "food": 0.25,
+            "wood": 0.25,
+            "stone": 0.25,
+            "gold": 0.25
+        }
+    
+    # Normalize weights to sum to 1.0
+    total = sum(weights.values())
+    if total > 0:
+        weights = {k: v / total for k, v in weights.items()}
+    
+    # Select based on weights
+    rand = random.random()
+    cumulative = 0.0
+    
+    for resource, weight in weights.items():
+        cumulative += weight
+        if rand <= cumulative:
+            return resource
+    
+    # Fallback to first resource
+    return list(weights.keys())[0]
+
 def find_initial_search_button(screenshot):
     """
     Find the initial search button (blue button with magnifying glass icon).
@@ -783,7 +907,7 @@ def find_initial_search_button(screenshot):
     
     return None
 
-def use_search_feature(resource_type="all", level=1, use_coords=True):
+def use_search_feature(resource_type="all", level="max", use_coords=True):
     """
     Use the game's search feature to find resources.
     Correct flow:
@@ -794,150 +918,51 @@ def use_search_feature(resource_type="all", level=1, use_coords=True):
     
     Args:
         resource_type: "food", "wood", "stone", "gold", or "all"
-        level: Resource level to search for (default: 1)
+        level: Resource level to search for ("max" to use highest available, or int for specific level)
         use_coords: If True, use hardcoded coordinates (more reliable)
     
     Returns: True if search was successful, False otherwise
     """
-    print(f"Using search feature for {resource_type} resources (level {level})...")
+    print(f"Using search feature for {resource_type} resources (level: {level})...")
     
-    # Step 1: Click the initial search button (magnifying glass icon)
+    # Step 1: Click the initial search button (magnifying glass icon) using image detection
     print("Step 1: Clicking initial search button (magnifying glass)...")
-    if use_coords and BUTTON_COORDS["initial_search"] is not None:
-        # Use hardcoded coordinates
-        if click_button_by_coords("initial_search"):
-            human_delay(2, 3)  # Wait for search menu to open
-        else:
-            print("ERROR: Failed to click initial search button using coordinates!")
-            return False
+    if click_button_by_template("searchglass.png", threshold=0.7):
+        print("Found and clicked search glass button")
+        time.sleep(2)  # Wait for search menu to open
     else:
-        # Fallback to image detection
-        screenshot = capture_screen()
-        if screenshot is None:
-            print("Failed to capture screen")
-            return False
-        
-        initial_search_button = find_initial_search_button(screenshot)
-        if initial_search_button:
-            x, y, w, h = initial_search_button
-            center_x = x + w // 2
-            center_y = y + h // 2
-            print(f"Found initial search button at ({center_x}, {center_y})")
-            random_click(center_x, center_y, w, h, padding=10)
-            human_delay(2, 3)  # Wait for search menu to open
-        else:
-            print("ERROR: Could not find initial search button!")
-            return False
+        print("ERROR: Could not find search glass button!")
+        return False
     
-    # Step 2: Select resource type (if not "all")
+    # Step 2: Select resource type (if not "all") using coordinates
     if resource_type != "all":
         print(f"Step 2: Selecting {resource_type} resource type...")
         button_key = f"search_{resource_type}"
         
-        if use_coords and button_key in BUTTON_COORDS and BUTTON_COORDS[button_key] is not None:
-            # Use hardcoded coordinates
+        if button_key in BUTTON_COORDS and BUTTON_COORDS[button_key] is not None:
+            # Use hardcoded coordinates (we have these already)
             if click_button_by_coords(button_key):
-                human_delay(1, 2)
+                print(f"Clicked {resource_type} button")
+                time.sleep(1)  # Small delay for game to load
             else:
                 print(f"Warning: Failed to click {resource_type} button using coordinates")
         else:
-            # Fallback to image detection
-            screenshot = capture_screen()
-            if screenshot is None:
-                print("Failed to capture screen after opening search menu")
-                return False
-            
-            res_button = find_resource_type_button(screenshot, resource_type)
-            if res_button:
-                x, y, w, h = res_button
-                center_x = x + w // 2
-                center_y = y + h // 2
-                print(f"Found {resource_type} button at ({center_x}, {center_y})")
-                random_click(center_x, center_y, w, h, padding=5)
-                human_delay(1, 2)
-            else:
-                print(f"Warning: Could not find {resource_type} button, continuing anyway...")
+            print(f"Warning: No coordinates found for {resource_type} button")
     
-    # Step 3: Adjust level if needed
-    if level != 1:
-        print(f"Step 3: Adjusting level to {level}...")
-        
-        if use_coords and BUTTON_COORDS["level_plus"] is not None:
-            # Use hardcoded coordinates
-            print(f"Clicking plus button {level - 1} times...")
-            for i in range(level - 1):
-                if click_button_by_coords("level_plus"):
-                    human_delay(0.4, 0.6)
-                else:
-                    print(f"Warning: Failed to click plus button on attempt {i+1}")
-        else:
-            # Fallback to image detection
-            screenshot = capture_screen()
-            if screenshot is None:
-                print("Failed to capture screen for level adjustment")
-                return False
-            
-            controls = find_level_controls(screenshot)
-            
-            if controls:
-                # Click plus button (level - 1) times to increase from level 1
-                if 'plus' in controls and level > 1:
-                    x, y, w, h = controls['plus']
-                    center_x = x + w // 2
-                    center_y = y + h // 2
-                    print(f"Clicking plus button {level - 1} times...")
-                    for i in range(level - 1):
-                        random_click(center_x, center_y, w, h, padding=5)
-                        human_delay(0.4, 0.6)
-            else:
-                print("Warning: Could not find level controls, using default level 1")
+    # Step 3: Set level to 8 (always use level 8, no reset needed)
+    print("Step 3: Setting level to 8...")
+    set_level_to_8()
+    time.sleep(1)  # Wait for level to register
     
-    # Step 4: Find and click final SEARCH button (position depends on resource type)
-    print("Step 4: Clicking final SEARCH button...")
-    
-    if use_coords:
-        # Use resource-specific search button if available
-        search_button_key = f"final_search_{resource_type}" if resource_type != "all" else "final_search"
-        
-        # Try resource-specific button first
-        if search_button_key in BUTTON_COORDS and BUTTON_COORDS[search_button_key] is not None:
-            if click_button_by_coords(search_button_key):
-                human_delay(2, 3)  # Wait for search results
-                return True
-            else:
-                print(f"ERROR: Failed to click {search_button_key} using coordinates!")
-        
-        # Fallback to generic final_search
-        if BUTTON_COORDS["final_search"] is not None:
-            if click_button_by_coords("final_search"):
-                human_delay(2, 3)  # Wait for search results
-                return True
-            else:
-                print("ERROR: Failed to click final SEARCH button using coordinates!")
-                return False
-        else:
-            print("ERROR: No coordinates set for final SEARCH button!")
-            return False
+    # Step 4: Click the search button using image detection
+    print("Step 4: Clicking search button...")
+    if click_button_by_template("search.png", threshold=0.7):
+        print("Found and clicked search button")
+        time.sleep(2)  # Wait for search results
+        return True
     else:
-        # Fallback to image detection
-        screenshot = capture_screen()
-        if screenshot is None:
-            print("Failed to capture screen for final search button")
-            return False
-        
-        search_button = find_search_button(screenshot)
-        
-        if search_button:
-            x, y, w, h = search_button
-            center_x = x + w // 2
-            center_y = y + h // 2
-            print(f"Found final SEARCH button at ({center_x}, {center_y})")
-            random_click(center_x, center_y, w, h, padding=10)
-            human_delay(2, 3)  # Wait for search results
-            return True
-        else:
-            print("ERROR: Could not find final SEARCH button!")
-            return False
+        print("ERROR: Could not find search button!")
+        return False
 
 def find_highlighted_resources(screenshot):
     """
@@ -1071,6 +1096,117 @@ def find_template_on_screen(screenshot, template_path, threshold=0.7):
     
     return matches
 
+def find_button_by_template(template_filename, threshold=0.7):
+    """
+    Find a button on screen using template matching.
+    
+    Args:
+        template_filename: Name of the template image file (e.g., "plus_rrslvl.png")
+        threshold: Matching threshold (0.0 to 1.0)
+    
+    Returns:
+        (x, y, width, height) tuple or None if not found
+    """
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(script_dir, template_filename)
+    
+    screenshot = capture_screen()
+    if screenshot is None:
+        return None
+    
+    matches = find_template_on_screen(screenshot, template_path, threshold)
+    
+    if matches:
+        # Return the best match (first one after removing overlaps)
+        return matches[0]
+    
+    return None
+
+def click_button_by_template(template_filename, threshold=0.7):
+    """
+    Find and click a button using template matching.
+    
+    Args:
+        template_filename: Name of the template image file
+        threshold: Matching threshold
+    
+    Returns:
+        True if button was found and clicked, False otherwise
+    """
+    button = find_button_by_template(template_filename, threshold)
+    if button:
+        x, y, w, h = button
+        center_x = x + w // 2
+        center_y = y + h // 2
+        print(f"Found {template_filename} button at ({center_x}, {center_y})")
+        return random_click(center_x, center_y, w, h, padding=5)
+    else:
+        print(f"Could not find {template_filename} button")
+        return False
+
+def wait_for_loading_screen(max_wait=60):
+    """
+    Wait for loading screen and click on screen every 3 seconds until loading screen is gone.
+    
+    Args:
+        max_wait: Maximum time to wait in seconds
+    
+    Returns:
+        True if loading completed, False if timeout
+    """
+    print("Waiting for loading screen...")
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait:
+        screenshot = capture_screen()
+        if screenshot is None:
+            print("Failed to capture screen, waiting...")
+            time.sleep(3)
+            continue
+        
+        # Check if loading screen is present
+        loading_button = find_button_by_template("loading.png", threshold=0.7)
+        
+        if loading_button:
+            # Click on screen (center of screen)
+            screen_center_x = screenshot.shape[1] // 2
+            screen_center_y = screenshot.shape[0] // 2
+            print("Loading screen detected, clicking to continue...")
+            random_click(screen_center_x, screen_center_y, 0, 0, padding=0)
+            time.sleep(3)  # Wait 3 seconds before checking again
+        else:
+            print("Loading screen no longer detected. Game loaded!")
+            time.sleep(2)  # Small delay to ensure game is ready
+            return True
+    
+    print(f"Timeout waiting for loading screen (waited {max_wait} seconds)")
+    return False
+
+def click_outside_map(max_attempts=10):
+    """
+    Detect and click the outside_map button to go outside the map.
+    
+    Args:
+        max_attempts: Maximum number of attempts to find and click
+    
+    Returns:
+        True if clicked successfully, False otherwise
+    """
+    print("Looking for outside_map button...")
+    
+    for attempt in range(max_attempts):
+        if click_button_by_template("outside_map.png", threshold=0.7):
+            print("Successfully clicked outside_map button")
+            time.sleep(2)  # Wait for map to load
+            return True
+        else:
+            print(f"Attempt {attempt + 1}/{max_attempts}: Could not find outside_map button, waiting...")
+            time.sleep(2)
+    
+    print("Failed to find outside_map button after all attempts")
+    return False
+
 def remove_overlapping_matches(matches, overlap_threshold=0.5):
     """Remove overlapping matches, keeping the best ones"""
     if not matches:
@@ -1099,27 +1235,34 @@ def remove_overlapping_matches(matches, overlap_threshold=0.5):
     
     return filtered
 
-def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_search=True, level=1):
+def gather_rss(resource_type="random", max_resources=10, gather_timeout=300, use_search=True, level="max", resource_weights=None):
     """
     Main RSS gathering function using the search feature (much more reliable!).
     
     Args:
-        resource_type: Type of resource to gather ("food", "wood", "stone", "gold", "all")
+        resource_type: Type of resource to gather ("food", "wood", "stone", "gold", "all", or "random")
+                      If "random", will randomly select between food, wood, stone, gold with weighted chances
         max_resources: Maximum number of resources to gather
         gather_timeout: Maximum time to spend gathering (seconds)
         use_search: Use the game's search feature (recommended: True)
-        level: Resource level to search for (default: 1)
+        level: Resource level to search for ("max" to use highest available, or int for specific level)
+        resource_weights: Dict with resource types as keys and weights as values for random selection.
+                         Example: {"food": 0.3, "wood": 0.3, "stone": 0.2, "gold": 0.2}
     """
     print(f"\n{'='*50}")
     print(f"Starting RSS Gathering - Type: {resource_type}, Level: {level}")
     if use_search:
         print("Using game's search feature (recommended)")
+    if resource_type == "random":
+        print("Using random resource selection with weighted chances")
     print(f"{'='*50}\n")
     
     start_time = time.time()
     resources_gathered = 0
     search_count = 0
     max_searches = 20  # Limit number of searches
+    active_marches = 0  # Track how many marches are currently gathering
+    max_marches = 5  # Maximum number of marches to use
     
     while resources_gathered < max_resources and search_count < max_searches:
         # Check timeout
@@ -1128,9 +1271,15 @@ def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_se
             break
         
         if use_search:
+            # Select resource type if using random selection
+            current_resource_type = resource_type
+            if resource_type == "random":
+                current_resource_type = select_random_resource(resource_weights)
+                print(f"Randomly selected resource type: {current_resource_type}")
+            
             # Use the search feature to find resources
             print(f"\n--- Search #{search_count + 1} ---")
-            if use_search_feature(resource_type, level):
+            if use_search_feature(current_resource_type, level):
                 search_count += 1
                 
                 # Wait for search results to appear
@@ -1140,7 +1289,7 @@ def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_se
                 screenshot = capture_screen()
                 if screenshot is None:
                     print("Failed to capture screen after search")
-                    human_delay(2, 3)
+                    time.sleep(2)
                     continue
                 
                 # Find highlighted resources from search
@@ -1150,7 +1299,7 @@ def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_se
                 if not resources:
                     print("No highlighted resources found. Trying fallback detection...")
                     # Fallback to regular detection
-                    resources = find_resource_nodes(screenshot, resource_type)
+                    resources = find_resource_nodes(screenshot, current_resource_type)
                     # Convert format if needed
                     if resources and len(resources[0]) > 4:
                         resources = [(r[0], r[1], r[2], r[3]) for r in resources]
@@ -1166,37 +1315,37 @@ def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_se
                         ((r[0] + r[2]//2 - screen_center_x)**2 + 
                          (r[1] + r[3]//2 - screen_center_y)**2)**0.5)
                     
-                    # Click on closest resources
+                    # Send all 5 marches to different resources
+                    # Use send_march_to_resource function for each resource
                     clicked_this_search = 0
-                    for x, y, w, h in resources[:5]:  # Try top 5 closest
-                        if resources_gathered >= max_resources:
-                            break
-                        
-                        center_x = x + w // 2
-                        center_y = y + h // 2
-                        
-                        print(f"Clicking resource at ({center_x}, {center_y})...")
-                        
-                        if random_click(center_x, center_y, w, h, padding=10):
-                            resources_gathered += 1
-                            clicked_this_search += 1
-                            print(f"✓ Gathered resource #{resources_gathered}/{max_resources}")
-                            
-                            # Wait for gathering to start
-                            human_delay(2, 3)
-                            
-                            # Small delay between clicks
-                            human_delay(1, 2)
+                    resources_to_click = min(max_marches, len(resources))
                     
-                    if clicked_this_search == 0:
-                        print("No resources were successfully clicked this search")
-                        human_delay(2, 3)
+                    print(f"Sending {resources_to_click} marches to resources...")
+                    
+                    # Send marches to resources (one per preset)
+                    for i, (x, y, w, h) in enumerate(resources[:resources_to_click]):
+                        preset_number = (i % 5) + 1  # Cycle through presets 1-5
+                        
+                        if send_march_to_resource(x, y, w, h, preset_number):
+                            clicked_this_search += 1
+                            resources_gathered += 1
+                            print(f"✓ Sent march {preset_number} to resource (Total: {resources_gathered}/{max_resources})")
+                        else:
+                            print(f"✗ Failed to send march {preset_number} to resource")
+                    
+                    if clicked_this_search > 0:
+                        print(f"Successfully sent {clicked_this_search} marches to resources")
+                        # Wait a bit for all marches to be dispatched
+                        time.sleep(3)
+                    else:
+                        print("No marches were successfully sent this search")
+                        time.sleep(2)
                 else:
                     print("No resources found after search")
-                    human_delay(3, 5)
+                    time.sleep(3)
             else:
                 print("Search feature failed, waiting...")
-                human_delay(3, 5)
+                time.sleep(3)
         else:
             # Old method: direct pixel detection (less reliable)
             print("Using direct pixel detection (not recommended)...")
@@ -1242,28 +1391,35 @@ def gather_rss(resource_type="all", max_resources=10, gather_timeout=300, use_se
     print(f"{'='*50}\n")
 
 def main():
-    """Main function"""
+    """Main function - Fully automated RSS gathering bot"""
     print("=" * 50)
-    print("RSS Bot for Rise of Kingdoms")
+    print("RSS Bot for Rise of Kingdoms - Automated Mode")
+    print("=" * 50)
+    print("Configuration:")
+    print("  - Resource types: Random (food, wood, stone, gold)")
+    print("  - Level: Maximum (8)")
+    print("  - Marches: 5")
+    print("  - Mode: Fully automated (no user input)")
     print("=" * 50)
     
     # Check if Nox is already running
     if check_adb_connection():
-        print("Nox Player appears to be already running!")
-        user_input = input("Do you want to launch Rise of Kingdoms anyway? (y/n): ")
-        if user_input.lower() != 'y':
-            return
+        print("Nox Player appears to be already running. Continuing...")
     else:
         # Launch Nox Player
+        print("Launching Nox Player...")
         if not launch_nox():
+            print("ERROR: Failed to launch Nox Player. Exiting.")
             return
     
     # Wait a bit for everything to settle
+    print("Waiting for Nox to initialize...")
     time.sleep(3)
     
     # Launch Rise of Kingdoms
+    print("Launching Rise of Kingdoms...")
     if not launch_rise_of_kingdoms():
-        print("\nFailed to launch Rise of Kingdoms. Please check the errors above.")
+        print("\nERROR: Failed to launch Rise of Kingdoms. Exiting.")
         return
     
     print("\n" + "=" * 50)
@@ -1271,45 +1427,50 @@ def main():
     print("Waiting for game to load...")
     print("=" * 50)
     
-    # Wait for game to fully load
-    time.sleep(10)
+    # Wait for loading screen and click every 3 seconds until it's gone
+    print("Waiting for loading screen to complete...")
+    if not wait_for_loading_screen(max_wait=120):
+        print("WARNING: Loading screen timeout, continuing anyway...")
     
-    # Ask user if they want to start gathering
+    # Click outside_map button to go outside the map
+    print("\nGoing outside the map...")
+    if not click_outside_map(max_attempts=10):
+        print("WARNING: Could not click outside_map button, continuing anyway...")
+    
+    time.sleep(2)  # Small delay after going outside map
+    
+    # Start automated gathering
     print("\n" + "=" * 50)
-    print("RSS Gathering Options")
-    print("=" * 50)
-    print("1. Gather all resources")
-    print("2. Gather food only")
-    print("3. Gather wood only")
-    print("4. Gather stone only")
-    print("5. Gather gold only")
-    print("6. Skip gathering (just launch)")
+    print("Starting automated RSS gathering...")
     print("=" * 50)
     
-    choice = input("Enter your choice (1-6): ").strip()
+    # Default settings for automated mode
+    resource_type = "random"  # Randomly select between food, wood, stone, gold
+    max_resources = 100  # Gather many resources (bot will run continuously)
+    level = "max"  # Use maximum level (8)
+    use_search = True  # Always use search feature
+    gather_timeout = 3600 * 8  # 8 hours timeout (for overnight running)
     
-    resource_map = {
-        "1": "all",
-        "2": "food",
-        "3": "wood",
-        "4": "stone",
-        "5": "gold",
-    }
+    print(f"Settings:")
+    print(f"  - Resource type: {resource_type} (random selection)")
+    print(f"  - Max resources: {max_resources}")
+    print(f"  - Level: {level} (will be set to 8)")
+    print(f"  - Use search: {use_search}")
+    print(f"  - Timeout: {gather_timeout // 3600} hours")
+    print("=" * 50)
     
-    if choice in resource_map:
-        max_resources = input("How many resources to gather? (default: 10): ").strip()
-        max_resources = int(max_resources) if max_resources.isdigit() else 10
-        
-        level_input = input("Resource level to search for? (default: 1): ").strip()
-        level = int(level_input) if level_input.isdigit() else 1
-        
-        use_search_input = input("Use search feature? (recommended: y/n, default: y): ").strip().lower()
-        use_search = use_search_input != 'n'
-        
-        gather_rss(resource_type=resource_map[choice], max_resources=max_resources, 
-                  use_search=use_search, level=level)
-    else:
-        print("Skipping RSS gathering.")
+    # Start gathering
+    gather_rss(
+        resource_type=resource_type,
+        max_resources=max_resources,
+        gather_timeout=gather_timeout,
+        use_search=use_search,
+        level=level
+    )
+    
+    print("\n" + "=" * 50)
+    print("Bot session completed.")
+    print("=" * 50)
 
 if __name__ == "__main__":
     main()
